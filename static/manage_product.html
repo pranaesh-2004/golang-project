@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Products</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      padding: 20px;
+      background-color: #f4f4f9;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #444;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    th, td {
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+
+    button {
+      padding: 8px 15px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #editForm {
+      display: none;
+      margin-top: 30px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      background-color: #ffffff;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+    }
+
+    #editForm h3 {
+      color: #444;
+    }
+
+    #editForm input,
+    #editForm textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0 15px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    #editForm button {
+      margin-right: 10px;
+      background-color: #28a745;
+    }
+
+    #editForm button:hover {
+      background-color: #218838;
+    }
+
+    #editForm .cancel {
+      background-color: #dc3545;
+    }
+
+    #editForm .cancel:hover {
+      background-color: #c82333;
+    }
+
+    .alert {
+      background-color: #f9c2c3;
+      color: #721c24;
+      padding: 15px;
+      margin-top: 20px;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Manage Products</h1>
+
+<!-- Alert Message -->
+<div class="alert" id="alertMessage"></div>
+
+<!-- Products Table -->
+<table id="productTable">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Category</th>
+      <th>Price</th>
+      <th>Description</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<!-- Edit Product Form -->
+<div id="editForm">
+  <h3>Edit Product</h3>
+  <input type="hidden" id="originalName">
+  <label>Name: <input type="text" id="editName"></label><br><br>
+  <label>Category: <input type="text" id="editCategory"></label><br><br>
+  <label>Price: <input type="number" id="editPrice" step="0.01"></label><br><br>
+  <label>Description:<br><textarea id="editDescription" rows="4" cols="40"></textarea></label><br><br>
+  <button onclick="submitEdit()">Save</button>
+  <button class="cancel" onclick="cancelEdit()">Cancel</button>
+</div>
+
+<script>
+  const API_BASE = '/api/products';
+
+  // Load all products
+  function fetchProducts() {
+    fetch(API_BASE)
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.querySelector('#productTable tbody');
+        tbody.innerHTML = '';
+        
+        data.forEach(product => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${product.name}</td>
+            <td>${product.category}</td>
+            <td>${product.price.toFixed(2)}</td>
+            <td>${product.description}</td>
+            <td>
+              <button onclick='editProduct(${JSON.stringify(product)})'>Edit</button>
+              <button onclick='deleteProduct("${product.name}")'>Delete</button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      });
+  }
+
+  // Delete a product
+  function deleteProduct(name) {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+    fetch(`${API_BASE}/${name}`, {
+      method: 'DELETE'
+    }).then(res => {
+      if (res.ok) {
+        showAlert('Deleted successfully!', 'success');
+        fetchProducts();
+      } else {
+        showAlert('Delete failed.', 'error');
+      }
+    });
+  }
+
+  // Show alert message
+  function showAlert(message, type) {
+    const alertBox = document.getElementById('alertMessage');
+    alertBox.style.display = 'block';
+    alertBox.textContent = message;
+    alertBox.style.backgroundColor = type === 'success' ? '#c3e6cb' : '#f9c2c3';
+    alertBox.style.color = type === 'success' ? '#155724' : '#721c24';
+  }
+
+  // Show edit form with current product data
+  function editProduct(product) {
+    document.getElementById('originalName').value = product.name;
+    document.getElementById('editName').value = product.name;
+    document.getElementById('editCategory').value = product.category;
+    document.getElementById('editPrice').value = product.price;
+    document.getElementById('editDescription').value = product.description;
+    document.getElementById('editForm').style.display = 'block';
+  }
+
+  // Cancel editing
+  function cancelEdit() {
+    document.getElementById('editForm').style.display = 'none';
+  }
+
+  // Submit product edits
+  function submitEdit() {
+    const originalName = document.getElementById('originalName').value;
+    const name = document.getElementById('editName').value;
+    const category = document.getElementById('editCategory').value;
+    const price = parseFloat(document.getElementById('editPrice').value);
+    const description = document.getElementById('editDescription').value;
+
+    const payload = { name, category, price, description };
+
+    fetch(`/api/products/${originalName}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(res => {
+      if (res.ok) {
+        showAlert('Updated successfully!', 'success');
+        cancelEdit();
+        fetchProducts();
+      } else {
+        showAlert('Update failed.', 'error');
+      }
+    });
+  }
+
+  // Initial load of products
+  fetchProducts();
+</script>
+
+</body>
+</html>

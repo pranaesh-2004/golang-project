@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Orders</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #007bff;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .order-container {
+      max-width: 1000px;
+      margin: 40px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .order {
+      border-bottom: 1px solid #ddd;
+      padding: 20px 0;
+    }
+    .order:last-child {
+      border-bottom: none;
+    }
+    .order img {
+      width: 100px;
+      border-radius: 8px;
+      margin-right: 20px;
+    }
+    .order-details {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .info {
+      flex-grow: 1;
+    }
+    .pay-button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .pay-button:hover {
+      background-color: #218838;
+    }
+    .status {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🛒 My Orders</h1>
+  </header>
+
+  <div class="order-container" id="ordersContainer">
+    <!-- Orders will be dynamically loaded here -->
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("/api/orders/api") // Backend route to fetch orders
+        .then(res => res.json())
+        .then(data => {
+          const container = document.getElementById("ordersContainer");
+          if (data.length === 0) {
+            container.innerHTML = "<p>No orders yet.</p>";
+            return;
+          }
+
+          data.forEach(order => {
+            const orderDiv = document.createElement("div");
+            orderDiv.className = "order";
+
+            orderDiv.innerHTML = `
+              <div class="order-details">
+                <img src="${order.imageURL}" alt="${order.name}" />
+                <div class="info">
+                  <h3>${order.name}</h3>
+                  <p>${order.description}</p>
+                  <p><strong>Price:</strong> ₹${order.price.toFixed(2)}</p>
+                  <p class="status">Status: ${order.status || "Pending Payment"}</p>
+               
+            `;
+            container.appendChild(orderDiv);
+          });
+        });
+    });
+
+    
+    
+  </script>
+</body>
+</html>

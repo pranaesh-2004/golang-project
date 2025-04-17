@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Classifier</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>🧠 AI Image Classifier</h1>
+
+    <form action="/api/classify" method="POST" enctype="multipart/form-data">
+        <label>Select an image to classify:</label><br>
+        <input type="file" name="image"><br><br>
+        <input type="submit" value="Classify Image">
+    </form>
+
+    <!-- Result will be displayed below -->
+    <div id="result"></div>
+</body>
+</html>

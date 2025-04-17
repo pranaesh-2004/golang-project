@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Your Cart</title>
+    <meta charset="UTF-8">
+    <style>
+        table {
+            width: 80%;
+            margin: auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Your Shopping Cart</h2>
+    <table id="cartTable">
+        <thead>
+            <tr>
+                <th>Product ID</th>
+<th>User ID</th>
+<th>Name</th>
+<th>Description</th>
+<th>Price</th>
+<th>Image</th>
+
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Cart items will be inserted here -->
+        </tbody>
+    </table>
+
+    <script>
+        window.onload = function () {
+            fetch("/api/cart")
+                .then(res => {
+                    if (!res.ok) throw new Error("Failed to fetch cart");
+                    return res.json();
+                })
+                .then(cartItems => {
+                    const tbody = document.querySelector("#cartTable tbody");
+                    if (Array.isArray(cartItems)) {
+                        tbody.innerHTML = "";
+                        cartItems.forEach(item => {
+    const row = `
+        <tr>
+            <td>${item.product_id}</td>
+            <td>${item.user_id}</td>
+            <td>${item.name}</td>
+            <td>${item.description}</td>
+            <td>$${item.price}</td>
+            <td><img src="${item.imageurl}" alt="Image" width="80"/></td>
+        </tr>`;
+    tbody.innerHTML += row;
+});
+
+                    } else {
+                        tbody.innerHTML = `<tr><td colspan="5">Cart is empty</td></tr>`;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching cart:", error);
+                    const tbody = document.querySelector("#cartTable tbody");
+                    tbody.innerHTML = `<tr><td colspan="5">Failed to load cart</td></tr>`;
+                });
+        };
+    </script>
+</body>
+</html>

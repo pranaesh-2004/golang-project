@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Profile - AI eCommerce</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #232f3e;
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    nav a {
+      color: white;
+      margin-left: 15px;
+      text-decoration: none;
+    }
+
+    .profile-container {
+      max-width: 800px;
+      margin: 40px auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+    }
+
+    .profile-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .profile-header img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      margin-right: 20px;
+    }
+
+    .profile-info h2 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .profile-info p {
+      color: #555;
+      margin: 5px 0;
+    }
+
+    .section-title {
+      font-size: 20px;
+      margin-top: 30px;
+      color: #333;
+    }
+
+    footer {
+      background: #232f3e;
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>AI eCommerce</h1>
+    <nav>
+      <a href="dashboard.html">Home</a>
+      <a href="view_products.html">Products</a>
+      <a href="cart.html">Cart</a>
+      <a href="logout.html">Logout</a>
+    </nav>
+  </header>
+
+  <div class="profile-container">
+    <div class="profile-header">
+      <img src="https://www.w3schools.com/w3images/avatar2.png" alt="User Avatar">
+      <div class="profile-info">
+        <h2 id="username">Loading...</h2>
+        <p id="useremail"></p>
+        <p id="userrole"></p>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="section-title">Your Account Details</h3>
+      <p><strong>User ID:</strong> <span id="userid">Loading...</span></p>
+      
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 AI eCommerce. All rights reserved.</p>
+  </footer>
+
+  <script>
+    window.onload = function () {
+  fetch("/api/user/profile", {
+    method: 'GET',
+    credentials: 'same-origin'  // Ensures cookies are sent with the request
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Failed to fetch profile");
+    return res.json();
+  })
+  .then(user => {
+    document.getElementById("username").innerText = "Username: " + user.username;
+    document.getElementById("userrole").innerText = "Role: " + user.role;
+    document.getElementById("userid").innerText = user._id;
+  })
+  .catch(error => {
+    console.error("❌ Error loading profile:", error);
+    document.querySelector(".profile-info").innerHTML = "<p>Error loading user profile.</p>";
+  });
+};
+
+  </script>
+
+</body>
+</html>

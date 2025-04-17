@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manage Users</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <h2>User Management</h2>
+  <table border="1">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Role</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="usersTable">
+      <!-- Users will be populated here -->
+    </tbody>
+  </table>
+
+  <script>
+    fetch('/api/users')
+      .then(res => res.json())
+      .then(data => {
+        const table = document.getElementById('usersTable');
+        data.forEach(user => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${user.username}</td>
+            <td>${user.role}</td>
+            <td><button onclick="deleteUser('${user.username}')">Delete</button></td>
+          `;
+          table.appendChild(row);
+        });
+      });
+
+    function deleteUser(username) {
+      fetch(`/api/users/${encodeURIComponent(username)}`, {
+        method: 'DELETE'
+      })
+      .then(res => {
+        if (res.ok) location.reload();
+        else alert('Error deleting user');
+      });
+    }
+  </script>
+</body>
+</html>
