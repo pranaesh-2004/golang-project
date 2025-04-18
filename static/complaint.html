@@ -1,0 +1,49 @@
+<!-- complaint.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Submit a Complaint</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+    }
+    input, textarea, button {
+      display: block;
+      margin: 10px 0;
+      width: 300px;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Submit a Complaint</h2>
+  <form id="complaintForm">
+    <input type="text" id="customer_id" placeholder="Your Customer ID" required />
+    <textarea id="description" placeholder="Enter complaint details..." rows="4" required></textarea>
+    <button type="submit">Submit Complaint</button>
+  </form>
+
+  <div id="response"></div>
+
+  <script>
+    document.getElementById("complaintForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const customer_id = document.getElementById("customer_id").value;
+      const description = document.getElementById("description").value;
+
+      const res = await fetch("/api/complaints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id, description })
+      });
+
+      const data = await res.json();
+      document.getElementById("response").innerText = res.ok
+        ? "Complaint submitted successfully! Complaint ID: " + data.id
+        : "Error: " + data.message || "Something went wrong";
+    });
+  </script>
+</body>
+</html>

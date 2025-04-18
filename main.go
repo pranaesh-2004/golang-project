@@ -6,10 +6,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"go_project/models"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"log"
+	"math"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -22,14 +29,17 @@ import (
 )
 
 var (
-	mu                 sync.Mutex
-	client             *mongo.Client
-	usersCollection    *mongo.Collection
-	ordersCollection   *mongo.Collection
-	cartCollection     *mongo.Collection
-	productsCollection *mongo.Collection
-	cartItems          []models.Product
-	products           = []Product{}
+	mu                   sync.Mutex
+	client               *mongo.Client
+	usersCollection      *mongo.Collection
+	ordersCollection     *mongo.Collection
+	cartCollection       *mongo.Collection
+	productsCollection   *mongo.Collection
+	cartItems            []models.Product
+	products             = []Product{}
+	ctx                  context.Context
+	complaintsCollection *mongo.Collection
+	contactCollection    *mongo.Collection
 )
 
 type User struct {
@@ -54,19 +64,45 @@ type CartItem struct {
 	Price       int    `json:"price"`
 	ImageURL    string `json:"imageurl"`
 }
+type Contact struct {
+	Phone    string `bson:"phone" json:"phone"`
+	Whatsapp string `bson:"whatsapp" json:"whatsapp"`
+	Email    string `bson:"email" json:"email"`
+}
 type Order struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	UserID      string             `bson:"user_id" json:"user_id"`
-	Name        string             `bson:"name" json:"name"`
-	Description string             `bson:"description" json:"description"`
-	Price       float64            `bson:"price" json:"price"`
-	ImageURL    string             `bson:"imageurl" json:"imageURL"`
-	Status      string             `bson:"status" json:"status"`
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID         string             `bson:"user_id" json:"user_id"`
+	Name           string             `bson:"name" json:"name"`
+	Description    string             `bson:"description" json:"description"`
+	Price          float64            `bson:"price" json:"price"`
+	ImageURL       string             `bson:"imageurl" json:"imageURL"`
+	Status         string             `bson:"status" json:"status"`
+	OrderID        string             `bson:"order_id" json:"order_id"`
+	CustomerID     string             `bson:"customer_id" json:"customer_id"`
+	OrderDate      time.Time          `bson:"order_date" json:"order_date"`
+	ExpectedDel    time.Time          `bson:"expected_delivery" json:"expected_delivery"`
+	Address        string             `bson:"address,omitempty" json:"address,omitempty"`
+	Rating         int                `bson:"rating,omitempty" json:"rating,omitempty"`
+	DeliveryStatus string             `bson:"delivery_status,omitempty" json:"delivery_status,omitempty"` // e.g., "Pending", "Delivered"
 }
 type DashboardData struct {
 	TotalUsers    int64 `json:"totalUsers"`
 	TotalProducts int64 `json:"totalProducts"`
 	OrdersToday   int64 `json:"ordersToday"`
+}
+type Complaint struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	CustomerID  string             `bson:"customer_id" json:"customer_id"`
+	Description string             `bson:"description" json:"description"`
+	Status      string             `bson:"status" json:"status"`
+	CreatedAt   time.Time          `bson:"created_at" json:"created_at"`
+}
+
+type ChatMessage struct {
+	Type     string `json:"type"` // "user" or "bot"
+	Content  string `json:"content"`
+	Time     string `json:"time"`
+	Metadata string `json:"metadata,omitempty"` // For links, buttons, etc.
 }
 
 func main() {
@@ -77,23 +113,28 @@ func main() {
 
 func initDB() {
 	var err error
-	clientOptions := options.Client().ApplyURI("mongodb+srv://vgugan16:gugan2004@cluster0.qyh1fuo.mongodb.net/golang?retryWrites=true&w=majority&appName=Cluster0")
-	client, err = mongo.Connect(context.TODO(), clientOptions)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err = mongo.Connect(ctx, options.Client().ApplyURI("mongodb+srv://vgugan16:gugan2004@cluster0.qyh1fuo.mongodb.net/golang?retryWrites=true&w=majority&appName=Cluster0"))
 	if err != nil {
 		log.Fatal("❌ Failed to connect to MongoDB:", err)
 	}
-	if err = client.Ping(context.TODO(), nil); err != nil {
+
+	err = client.Ping(ctx, nil)
+	if err != nil {
 		log.Fatal("❌ MongoDB connection error:", err)
 	}
+
 	fmt.Println("✅ Connected to MongoDB!")
 
 	db := client.Database("authdb")
 	usersCollection = db.Collection("users")
 	productsCollection = db.Collection("products")
-	cartCollection = db.Collection("cart")
 	ordersCollection = db.Collection("orders")
-
-	fmt.Println("MongoDB connection successful")
+	cartCollection = db.Collection("cart")
+	complaintsCollection = db.Collection("complaints")
+	contactCollection = db.Collection("contact")
 }
 
 func startTCPServer() {
@@ -168,6 +209,9 @@ func startWebServer() {
 	r.HandleFunc("/edit_product.html", serveStaticPage("static/edit_product.html")).Methods("GET")
 	r.HandleFunc("/track.html", serveStaticPage("static/track.html")).Methods("GET")
 	r.HandleFunc("/orders.html", serveStaticPage("static/orders.html")).Methods("GET")
+	r.HandleFunc("/chatbot.html", serveStaticPage("static/chatbot.html")).Methods("GET")
+	r.HandleFunc("/contact.html", serveStaticPage("static/contact.html")).Methods("GET")
+	r.HandleFunc("/image.html", serveStaticPage("static/image.html")).Methods("GET")
 
 	// Auth
 	r.HandleFunc("/login", loginHandler).Methods("POST")
@@ -196,6 +240,18 @@ func startWebServer() {
 	r.HandleFunc("/api/products/{name}", deleteProductByName).Methods("DELETE")
 	r.HandleFunc("/api/products/{name}", UpdateProductHandler).Methods("PUT")
 	r.HandleFunc("/api/dashboard", dashboardHandler).Methods("GET")
+	r.HandleFunc("/api/chat", chatbotHandler).Methods("POST")
+	r.HandleFunc("/api/contact", getContactInfo).Methods("GET")
+	r.HandleFunc("/api/track-order", trackOrder).Methods("GET")
+	r.HandleFunc("/api/complaints", addComplaint).Methods("POST")
+	r.HandleFunc("/api/products", getProductsByCategory).Methods("GET")
+	r.HandleFunc("/api/contact", saveContactInfo).Methods("POST")
+	r.HandleFunc("/api/contact", getContactInfo).Methods("GET")
+	r.HandleFunc("/api/complaints/{id}", getComplaintByID).Methods("GET")
+	r.HandleFunc("/upload", uploadFormHandler).Methods("GET")
+
+	// Handle the image upload and processing on POST request
+	r.HandleFunc("/upload", handleUpload).Methods("POST")
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
@@ -841,4 +897,370 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
+}
+func trackOrder(w http.ResponseWriter, r *http.Request) {
+	orderID := r.URL.Query().Get("order_id")
+	if orderID == "" {
+		http.Error(w, "Order ID is required", http.StatusBadRequest)
+		return
+	}
+
+	objID, err := primitive.ObjectIDFromHex(orderID)
+	if err != nil {
+		http.Error(w, "Invalid order ID format", http.StatusBadRequest)
+		return
+	}
+
+	collection := client.Database("authdb").Collection("orders")
+	var order bson.M // use generic map for flexibility
+
+	err = collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&order)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			http.Error(w, "Order not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(order)
+}
+
+func addComplaint(w http.ResponseWriter, r *http.Request) {
+	var complaint Complaint
+	err := json.NewDecoder(r.Body).Decode(&complaint)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	complaint.Status = "pending"
+	complaint.CreatedAt = time.Now()
+
+	collection := client.Database("authdb").Collection("complaints")
+	result, err := collection.InsertOne(ctx, complaint)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	complaint.ID = result.InsertedID.(primitive.ObjectID)
+	json.NewEncoder(w).Encode(complaint)
+}
+
+func getProductsByCategory(w http.ResponseWriter, r *http.Request) {
+	category := r.URL.Query().Get("description")
+	if category == "" {
+		http.Error(w, "Product description is required", http.StatusBadRequest)
+		return
+	}
+
+	collection := client.Database("authdb").Collection("products")
+	cursor, err := collection.Find(ctx, bson.M{
+		"description": bson.M{"$regex": category, "$options": "i"},
+	})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error querying the database: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var products []Product
+	if err = cursor.All(ctx, &products); err != nil {
+		http.Error(w, fmt.Sprintf("Error decoding products: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if len(products) == 0 {
+		http.Error(w, "No products found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(products); err != nil {
+		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
+	}
+}
+
+func analyzeIntent(text string) string {
+	text = strings.ToLower(text)
+	switch {
+	case strings.Contains(text, "contact"), strings.Contains(text, "call"), strings.Contains(text, "email"), strings.Contains(text, "whatsapp"):
+		return "contact"
+	case strings.Contains(text, "track"), strings.Contains(text, "order"), strings.Contains(text, "delivery"):
+		return "track_order"
+	case strings.Contains(text, "complaint"), strings.Contains(text, "issue"), strings.Contains(text, "problem"):
+		return "complaint"
+	case strings.Contains(text, "product"), strings.Contains(text, "description"), strings.Contains(text, "price"):
+		return "product_info"
+	case strings.Contains(text, "navigate"), strings.Contains(text, "go to"), strings.Contains(text, "cart"), strings.Contains(text, "payment"):
+		return "navigation"
+	default:
+		return "unknown"
+	}
+}
+
+func correctGrammar(text string) string {
+	return text // Mock grammar correction
+}
+
+func chatbotHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Message string `json:"message"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	correctedText := correctGrammar(req.Message)
+	intent := analyzeIntent(correctedText)
+
+	var response ChatMessage
+	response.Time = time.Now().Format("15:04")
+
+	switch intent {
+	case "contact":
+		response.Type = "bot"
+		response.Content = "Here are our contact details. How would you like to reach us?"
+		response.Metadata = "contact_options"
+	case "track_order":
+		response.Type = "bot"
+		response.Content = "Please provide your order ID so I can check the status for you."
+	case "complaint":
+		response.Type = "bot"
+		response.Content = "I'm sorry to hear about your issue. You can file a complaint and we'll respond shortly."
+	case "product_info":
+		response.Type = "bot"
+		response.Content = "What type of product are you looking for? (e.g., phone, laptop, earphones)"
+	case "navigation":
+		response.Type = "bot"
+		response.Content = "Where would you like to go? (Cart, Payment, Orders, Home)"
+	default:
+		response.Type = "bot"
+		response.Content = "I'm here to help. You can ask about products, orders, complaints, or contact info."
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+func saveContactInfo(w http.ResponseWriter, r *http.Request) {
+	var contact Contact
+	if err := json.NewDecoder(r.Body).Decode(&contact); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	collection := client.Database("authdb").Collection("contact")
+
+	// Replace existing contact document or insert one if none exists
+	_, err := collection.ReplaceOne(ctx, bson.M{}, contact, options.Replace().SetUpsert(true))
+	if err != nil {
+		http.Error(w, "Error saving contact info", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Contact info saved successfully"})
+}
+
+func getContactInfo(w http.ResponseWriter, r *http.Request) {
+	collection := client.Database("authdb").Collection("contact")
+	var contact Contact
+
+	err := collection.FindOne(ctx, bson.M{}).Decode(&contact)
+	if err != nil {
+		http.Error(w, "No contact info found", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(contact)
+}
+func getComplaintByID(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	objID, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		http.Error(w, "Invalid complaint ID", http.StatusBadRequest)
+		return
+	}
+
+	var complaint Complaint
+	collection := client.Database("authdb").Collection("complaints")
+	err = collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&complaint)
+	if err != nil {
+		http.Error(w, "Complaint not found", http.StatusNotFound)
+		return
+	}
+
+	type ComplaintResponse struct {
+		ID          string    `json:"id"`
+		CustomerID  string    `json:"customer_id"`
+		Description string    `json:"description"`
+		Status      string    `json:"status"`
+		CreatedAt   time.Time `json:"created_at"`
+	}
+
+	response := ComplaintResponse{
+		ID:          complaint.ID.Hex(),
+		CustomerID:  complaint.CustomerID,
+		Description: complaint.Description,
+		Status:      complaint.Status,
+		CreatedAt:   complaint.CreatedAt,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+func uploadFormHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./static/image.html")
+}
+
+// Handle the POST request to upload and process the image
+func handleUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/uploads", http.StatusSeeOther)
+		return
+	}
+
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "Image read error", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Decode the image
+	img, format, err := image.Decode(file)
+	if err != nil {
+		http.Error(w, "Image decode error", http.StatusInternalServerError)
+		return
+	}
+
+	// Apply the effects based on user input
+	applyGray := r.FormValue("grayscale") == "on"
+	applyBlur := r.FormValue("gaussian") == "on"
+	applySobel := r.FormValue("sobel") == "on"
+
+	var processed image.Image = img
+
+	if applyGray {
+		processed = toGrayscale(processed)
+	}
+	if applyBlur {
+		if gray, ok := processed.(*image.Gray); ok {
+			processed = applyGaussianBlur(gray)
+		}
+	}
+	if applySobel {
+		if gray, ok := processed.(*image.Gray); ok {
+			processed = applySobelFilter(gray)
+		}
+	}
+
+	// Save the processed image
+	outputPath := filepath.Join("uploads", "processed_"+header.Filename)
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+	defer outFile.Close()
+
+	// Encode the image (either PNG or JPEG)
+	if strings.ToLower(format) == "png" {
+		png.Encode(outFile, processed)
+	} else {
+		jpeg.Encode(outFile, processed, nil)
+	}
+
+	// Respond to the user
+	w.Write([]byte(fmt.Sprintf("✅ Image processed and saved at: %s", outputPath)))
+}
+
+// Convert the image to grayscale
+func toGrayscale(img image.Image) *image.Gray {
+	bounds := img.Bounds()
+	gray := image.NewGray(bounds)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			yVal := uint8(0.299*float64(r>>8) + 0.587*float64(g>>8) + 0.114*float64(b>>8))
+			gray.SetGray(x, y, color.Gray{Y: yVal})
+		}
+	}
+	return gray
+}
+
+// Apply Gaussian blur to the image
+var gaussianKernel = [3][3]float64{
+	{1, 2, 1},
+	{2, 4, 2},
+	{1, 2, 1},
+}
+
+func applyGaussianBlur(img *image.Gray) *image.Gray {
+	bounds := img.Bounds()
+	result := image.NewGray(bounds)
+	for y := 1; y < bounds.Max.Y-1; y++ {
+		for x := 1; x < bounds.Max.X-1; x++ {
+			var sum float64
+			for ky := -1; ky <= 1; ky++ {
+				for kx := -1; kx <= 1; kx++ {
+					p := img.GrayAt(x+kx, y+ky).Y
+					sum += float64(p) * gaussianKernel[ky+1][kx+1]
+				}
+			}
+			result.SetGray(x, y, color.Gray{Y: uint8(sum / 16)})
+		}
+	}
+	return result
+}
+
+// Sobel edge detection filter
+var sobelX = [3][3]int{
+	{-1, 0, 1},
+	{-2, 0, 2},
+	{-1, 0, 1},
+}
+
+var sobelY = [3][3]int{
+	{-1, -2, -1},
+	{0, 0, 0},
+	{1, 2, 1},
+}
+
+func applySobelFilter(img *image.Gray) *image.Gray {
+	bounds := img.Bounds()
+	result := image.NewGray(bounds)
+	for y := 1; y < bounds.Max.Y-1; y++ {
+		for x := 1; x < bounds.Max.X-1; x++ {
+			var gx, gy int
+			for ky := -1; ky <= 1; ky++ {
+				for kx := -1; kx <= 1; kx++ {
+					val := int(img.GrayAt(x+kx, y+ky).Y)
+					gx += sobelX[ky+1][kx+1] * val
+					gy += sobelY[ky+1][kx+1] * val
+				}
+			}
+			mag := math.Sqrt(float64(gx*gx + gy*gy))
+			if mag > 255 {
+				mag = 255
+			}
+			result.SetGray(x, y, color.Gray{Y: uint8(mag)})
+		}
+	}
+	return result
 }

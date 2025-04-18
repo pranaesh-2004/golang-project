@@ -1,161 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Payment Gateway - AI eCommerce</title>
-    <link rel="stylesheet" href="styles.css" />
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f6f9fc;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 700px;
-            margin: auto;
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .product-list {
-            margin-bottom: 20px;
-        }
-        .product-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        .total {
-            font-size: 18px;
-            font-weight: bold;
-            text-align: right;
-            margin-bottom: 20px;
-        }
-        label {
-            font-weight: bold;
-        }
-        input {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-        }
-        button {
-            width: 100%;
-            background-color: #28a745;
-            border: none;
-            color: white;
-            padding: 15px;
-            font-size: 16px;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #218838;
-        }
-        .message {
-            margin-top: 20px;
-            text-align: center;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Embedded Payment Success Page</title>
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-    <h2>Checkout & Payment</h2>
-
-    <div class="product-list" id="productList"></div>
-    <div class="total" id="totalAmount"></div>
-
-    <form id="paymentForm">
-        <label>Card Number</label>
-        <input type="text" placeholder="1234 5678 9012 3456" required />
-
-        <label>Cardholder Name</label>
-        <input type="text" placeholder="John Doe" required />
-
-        <label>Expiry Date</label>
-        <input type="text" placeholder="MM/YY" required />
-
-        <label>CVV</label>
-        <input type="text" placeholder="123" required />
-
-        <button type="submit">Pay Now</button>
-    </form>
-
-    <div class="message" id="paymentMessage"></div>
-</div>
-
-<script>
-    const productListElement = document.getElementById("productList");
-    const totalAmountElement = document.getElementById("totalAmount");
-    const paymentMessage = document.getElementById("paymentMessage");
-
-    // ✅ Simulate: Get products from localStorage (set this from cart or view_products.html)
-    const cartData = JSON.parse(localStorage.getItem("cart")) || [];
-
-    // ✅ Display product info and compute total
-    let total = 0;
-    cartData.forEach(product => {
-        const item = document.createElement("div");
-        item.className = "product-item";
-        item.innerHTML = `
-            <span>${product.name} (x${product.quantity})</span>
-            <span>₹${product.price * product.quantity}</span>
-        `;
-        productListElement.appendChild(item);
-        total += product.price * product.quantity;
-    });
-
-    totalAmountElement.textContent = `Total: ₹${total}`;
-
-    // ✅ Handle payment form
-    document.getElementById("paymentForm").addEventListener("submit", function (e) {
-        e.preventDefault();
-
-        // Replace with dynamic user ID if available (from login/session)
-        const userId = localStorage.getItem("userId") || "testUser123";
-
-        fetch("/api/placeOrder", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                userId: userId,
-                products: cartData.map(p => ({
-                    productId: p.productId,
-                    quantity: p.quantity
-                })),
-                total: total,
-                paymentMethod: "card"
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                paymentMessage.style.color = "green";
-                paymentMessage.textContent = "Payment Successful! Order placed ✅";
-                localStorage.removeItem("cart");
-                setTimeout(() => window.location.href = "/index.html", 3000);
-            } else {
-                paymentMessage.style.color = "red";
-                paymentMessage.textContent = "Payment failed. Try again ❌";
-            }
-        })
-        .catch(error => {
-            console.error("Payment error:", error);
-            paymentMessage.textContent = "Something went wrong.";
-        });
-    });
-</script>
+  <iframe src="https://67fe2fab88575e267e9260dc--brilliant-puffpuff-ac60f1.netlify.app/" allowfullscreen></iframe>
 </body>
 </html>

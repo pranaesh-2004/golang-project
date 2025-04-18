@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Image - AI eCommerce</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #232f3e;
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    nav a {
+      color: white;
+      margin-left: 15px;
+      text-decoration: none;
+    }
+
+    .form-container {
+      max-width: 800px;
+      margin: 40px auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-container h2 {
+      font-size: 24px;
+      margin-bottom: 1rem;
+    }
+
+    .form-container input[type="file"] {
+      margin-bottom: 1rem;
+    }
+
+    .form-container input[type="submit"] {
+      background-color: #232f3e;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    footer {
+      background: #232f3e;
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>AI eCommerce</h1>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/view_products.html">Products</a>
+      <a href="/cart.html">Cart</a>
+      <a href="/logout.html">Logout</a>
+    </nav>
+  </header>
+
+  <div class="form-container">
+    <h2>Upload and Process Image</h2>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <label for="image">Choose an image:</label>
+      <input type="file" name="image" id="image" required><br><br>
+
+      <label for="grayscale">Apply Grayscale:</label>
+      <input type="checkbox" name="grayscale" id="grayscale"><br><br>
+
+      <label for="gaussian">Apply Gaussian Blur:</label>
+      <input type="checkbox" name="gaussian" id="gaussian"><br><br>
+
+      <label for="sobel">Apply Sobel Filter:</label>
+      <input type="checkbox" name="sobel" id="sobel"><br><br>
+
+      <input type="submit" value="Upload and Process">
+    </form>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 AI eCommerce. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>

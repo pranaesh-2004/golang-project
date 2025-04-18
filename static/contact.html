@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Update Contact Info</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 50px auto;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+
+    input[type="text"], input[type="email"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      background-color: #1976d2;
+      color: white;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .success {
+      margin-top: 15px;
+      color: green;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h2>Admin: Update Contact Info</h2>
+  <form id="contactForm">
+    <label for="phone">Phone Number</label>
+    <input type="text" id="phone" name="phone" required />
+
+    <label for="whatsapp">WhatsApp Number</label>
+    <input type="text" id="whatsapp" name="whatsapp" required />
+
+    <label for="email">Email Address</label>
+    <input type="email" id="email" name="email" required />
+
+    <button type="submit">Save Contact Info</button>
+    <div class="success" id="successMsg"></div>
+  </form>
+
+  <script>
+    document.getElementById('contactForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const data = {
+        phone: document.getElementById('phone').value,
+        whatsapp: document.getElementById('whatsapp').value,
+        email: document.getElementById('email').value
+      };
+
+      fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      .then(res => {
+        if (res.ok) {
+          document.getElementById('successMsg').textContent = 'Contact info saved successfully!';
+        } else {
+          document.getElementById('successMsg').textContent = 'Failed to save contact info.';
+        }
+      })
+      .catch(err => {
+        document.getElementById('successMsg').textContent = 'Error: ' + err.message;
+      });
+    });
+  </script>
+</body>
+</html>
