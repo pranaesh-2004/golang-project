@@ -212,6 +212,7 @@ func startWebServer() {
 	r.HandleFunc("/chatbot.html", serveStaticPage("static/chatbot.html")).Methods("GET")
 	r.HandleFunc("/contact.html", serveStaticPage("static/contact.html")).Methods("GET")
 	r.HandleFunc("/image.html", serveStaticPage("static/image.html")).Methods("GET")
+	r.HandleFunc("/complaint.html", serveStaticPage("static/complaint.html")).Methods("GET")
 
 	// Auth
 	r.HandleFunc("/login", loginHandler).Methods("POST")
